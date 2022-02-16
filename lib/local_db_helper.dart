@@ -74,15 +74,15 @@ class LocalDBService {
   //INSERT DATA TO TABLE
   void insert(
       {required String tableName,
-        required String parameters,
-        required List values,
-        bool multipleInsert = false}) async {
+      required String parameters,
+      required List values,
+      bool multipleInsert = false}) async {
     await _init().then((db) async {
       var batch = _DATABASE!.batch();
       String nValues = "";
       for (var i = 0;
-      i < (multipleInsert ? values[0].length : values.length);
-      i++) {
+          i < (multipleInsert ? values[0].length : values.length);
+          i++) {
         nValues = nValues + (i == 0 ? "" : ",") + "?";
       }
 
@@ -107,10 +107,10 @@ class LocalDBService {
   //READ DATA FROM TABLE
   Future<List<dynamic?>> read(
       {required String parameters,
-        required String tableName,
-        String? lastStatement = "",
-        String where = "",
-        bool prints = false}) async {
+      required String tableName,
+      String? lastStatement = "",
+      String where = "",
+      bool prints = false}) async {
     return await _init().then((db) async {
       var batch = _DATABASE!.batch();
       if (where.isEmpty) {
@@ -173,8 +173,7 @@ class LocalDBService {
   //LOOKS IF TABLE HAS ANY DATA
   void _tableIsEmpty(String tableName, db, Function ifNotExist) async {
     try {
-      int? count = Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM $tableName'));
+      await read(parameters: "*", tableName: tableName);
     } catch (e) {
       ifNotExist();
     }
@@ -189,4 +188,3 @@ class CreateModel {
   final String parameters;
   CreateModel({required this.parameters, required this.tableName});
 }
-
