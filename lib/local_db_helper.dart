@@ -1,36 +1,36 @@
 import 'dart:io';
 import 'package:mean_lib/logger.dart';
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
+
+Database? _DATABASE;
 
 class LocalDBService {
   //DATABASE NAEM
   final String name;
-   dynamic? DATABASE;
-  final Function(String path) openDatabase;
   //CONSTRUCTOR
-  // ignore: non_constant_identifier_names
-  LocalDBService({required this.openDatabase, this.DATABASE, required this.name});
+  LocalDBService({required this.name});
 
   //INIT METHOD LOOKS IF DB OPEN, IF NOT OPENS
   Future<void> _init() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, name);
-    if (DATABASE == null) {
-      DATABASE = await openDatabase(path);
+    if (_DATABASE == null) {
+      _DATABASE = await openDatabase(path);
     } else {
-      if (!DATABASE!.isOpen) {
-        DATABASE = await openDatabase(path);
+      if (!_DATABASE!.isOpen) {
+        _DATABASE = await openDatabase(path);
       }
     }
   }
 
   //CLOSE THE DB
   Future<void> close() async {
-    if (DATABASE != null) {
-      if (DATABASE!.isOpen) {
+    if (_DATABASE != null) {
+      if (_DATABASE!.isOpen) {
         Logger.success("Database Kapatılıyor");
-        await DATABASE!.close();
+        await _DATABASE!.close();
       }
     }
   }
@@ -38,15 +38,21 @@ class LocalDBService {
   //CREATE SINGLE TABLE
   void create({required String tableName, required String parameters}) async {
     await _init().then((db) async {
-      var batch = DATABASE!.batch();
-      _tableIsEmpty(tableName, DATABASE, () async {
+      var batch = _DATABASE!.batch();
+       batch.execute(
+          """ 
+        CREATE TABLE IF NOT EXISTS $tableName 
+        ($parameters)
+        """,
+        );
+     /* _tableIsEmpty(tableName, _DATABASE, () async {
         batch.execute(
           """ 
         CREATE TABLE $tableName 
         ($parameters)
         """,
         );
-      });
+      });*/
 
       await batch.commit();
     });
@@ -55,16 +61,22 @@ class LocalDBService {
   //CREATE MULTIPLE TABLES
   void multipleCreate({required List<CreateModel> tables}) async {
     await _init().then((db) async {
-      var batch = DATABASE!.batch();
+      var batch = _DATABASE!.batch();
       tables.forEach((table) {
-        _tableIsEmpty(table.tableName, DATABASE, () async {
+        batch.execute(
+            """ 
+        CREATE TABLE IF NOT EXISTS ${table.tableName} 
+        (${table.parameters})
+        """,
+          );
+      /*  _tableIsEmpty(table.tableName, _DATABASE, () async {
           batch.execute(
             """ 
         CREATE TABLE ${table.tableName} 
         (${table.parameters})
         """,
           );
-        });
+        });*/
       });
 
       await batch.commit();
@@ -78,7 +90,7 @@ class LocalDBService {
       required List values,
       bool multipleInsert = false}) async {
     await _init().then((db) async {
-      var batch = DATABASE!.batch();
+      var batch = _DATABASE!.batch();
       String nValues = "";
       for (var i = 0;
           i < (multipleInsert ? values[0].length : values.length);
@@ -112,7 +124,7 @@ class LocalDBService {
       String where = "",
       bool prints = false}) async {
     return await _init().then((db) async {
-      var batch = DATABASE!.batch();
+      var batch = _DATABASE!.batch();
       if (where.isEmpty) {
         batch.rawQuery(
           """
@@ -146,7 +158,7 @@ class LocalDBService {
   void delete(
       {required String tableName, required String whereStatement}) async {
     await _init().then((db) async {
-      var batch = DATABASE!.batch();
+      var batch = _DATABASE!.batch();
       batch.rawQuery(
         """
       DELETE FROM $tableName 
@@ -161,7 +173,7 @@ class LocalDBService {
   //UPDATE
   void update({required String sqlState}) async {
     await _init().then((db) async {
-      var batch = DATABASE!.batch();
+      var batch = _DATABASE!.batch();
       batch.rawQuery(
         sqlState,
       );
@@ -173,7 +185,8 @@ class LocalDBService {
   //LOOKS IF TABLE HAS ANY DATA
   void _tableIsEmpty(String tableName, db, Function ifNotExist) async {
     try {
-      await read(parameters: "*", tableName: tableName);
+      int? count = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM $tableName'));
     } catch (e) {
       ifNotExist();
     }
